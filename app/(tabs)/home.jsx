@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,

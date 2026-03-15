@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Platform } from "react-native";
+import CustomTabBar from "../../components/CustomTabBar";
 import { COLORS } from "../../constants/colors";
 
 function TabIcon({ name, color, size }) {
@@ -8,8 +9,10 @@ function TabIcon({ name, color, size }) {
 }
 
 export default function TabsLayout() {
+  const router = useRouter();
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -26,7 +29,7 @@ export default function TabsLayout() {
           justifyContent: "center",
           alignItems: "center",
           borderRadius: 20,
-          marginHorizontal:10
+          marginHorizontal: 10,
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
@@ -73,12 +76,18 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="profile_tab"
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <TabIcon name="person" color={color} size={size} />
           ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push("/profile");
+          },
         }}
       />
     </Tabs>

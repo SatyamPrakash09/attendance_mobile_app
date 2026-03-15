@@ -65,12 +65,29 @@ export default function RootLayout() {
       receivedSub.remove();
       responseSub.remove();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
-      <StatusBar style="light" backgroundColor={COLORS.bg} />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack>
+        <StatusBar style="light" backgroundColor={COLORS.bg} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            presentation: "formSheet",
+            gestureDirection: "vertical",
+            sheetGrabberVisible: false,
+            animation: "slide_from_bottom",
+            sheetInitialDetentIndex: 0,
+            sheetAllowedDetents: [0.5],
+            sheetCornerRadius: 15,
+            sheetExpandsWhenScrolledToEdge: false,
+            sheetElevation: 24,
+          }}
+        />
+      </Stack>
     </>
   );
 }

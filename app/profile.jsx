@@ -4,38 +4,35 @@ import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { COLORS } from "../../constants/colors";
+import { COLORS } from "../constants/colors";
 import {
-    registerBackgroundFetch,
-    requestNotificationPermission,
-    scheduleDailyReminder,
-    unregisterBackgroundFetch,
-} from "../../lib/notifications";
+  registerBackgroundFetch,
+  requestNotificationPermission,
+  scheduleDailyReminder,
+  unregisterBackgroundFetch,
+} from "../lib/notifications";
 import {
-    clearSession,
-    getBackendUrl,
-    getUid,
-    getUser,
-    saveBackendUrl,
-} from "../../lib/storage";
+  clearSession,
+  getBackendUrl,
+  getUid,
+  getUser,
+  saveBackendUrl,
+} from "../lib/storage";
 
-// Height of the floating tab bar + its bottom offset
-const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 84 : 64;
-const TAB_BAR_BOTTOM = 30; // matches bottom:30 in _layout.jsx
-const SCROLL_BOTTOM_PADDING = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM + 16;
+// Padding for the bottom of the scroll view
+const SCROLL_BOTTOM_PADDING = 40;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -123,11 +120,17 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <ScrollView
+      nestedScrollEnabled
+        style={{ flex: 1, padding:4}}
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: SCROLL_BOTTOM_PADDING + insets.bottom },
+          {
+            
+            paddingBottom: 40 + insets.bottom,
+            flexGrow: 1,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -136,6 +139,9 @@ export default function ProfileScreen() {
           colors={["#2d1250", "#1a0a2e", COLORS.bg]}
           style={styles.headerGrad}
         >
+          <View style={styles.grabberContainer}>
+            <View style={styles.grabber} />
+          </View>
           <View style={styles.avatarRow}>
             <LinearGradient
               colors={[COLORS.primaryDark, COLORS.primary]}
@@ -355,7 +361,7 @@ function InfoRow({ icon, label, value, mono, last }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: SCROLL_BOTTOM_PADDING },
-  headerGrad: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28 },
+  headerGrad: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28, borderRadius:10 },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   avatarCircle: {
     width: 68,
@@ -454,4 +460,18 @@ const styles = StyleSheet.create({
     borderColor: COLORS.absent,
   },
   logoutText: { color: COLORS.absent, fontWeight: "700", fontSize: 16 },
+  grabberContainer: {
+    width: "100%",
+    alignItems: "center",
+    paddingTop: 12,
+    paddingBottom: 4,
+    backgroundColor: "transparent",
+  },
+  grabber: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#FFFFFF",
+    opacity: 0.5,
+  },
 });
