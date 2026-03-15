@@ -112,12 +112,12 @@ export default function StatsScreen() {
       const uid = await getUid();
       const records = await fetchAllAttendance(uid);
       setStats(computeStats(records));
-      // setAiLoading(true);
+      setAiLoading(true);
     } catch (e) {
       console.log("Stats error:", e.message);
     } finally {
       setLoading(false);
-      // setAiLoading(false)
+      setAiLoading(false)
       if (isRefresh) setRefreshing(false);
     }
   }, []);

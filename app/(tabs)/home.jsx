@@ -116,7 +116,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  });
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData(true);
@@ -215,7 +215,7 @@ export default function HomeScreen() {
           >
             <Ionicons name={sc.icon} size={44} color={sc.color} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.statusLabel}>Today's Status</Text>
+              <Text style={styles.statusLabel}>{"Today's Status"}</Text>
               <Text style={[styles.statusValue, { color: sc.color }]}>
                 {sc.label}
               </Text>
