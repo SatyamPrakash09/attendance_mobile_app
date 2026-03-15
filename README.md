@@ -1,4 +1,4 @@
-# 📋 Attendance Marker — Mobile App
+im # 📋 Attendance Marker — Mobile App
 
 A **React Native / Expo** mobile app to track daily attendance, view statistics, browse history, and export records. Authentication is handled via a Telegram bot that issues a unique dashboard URL per user.
 

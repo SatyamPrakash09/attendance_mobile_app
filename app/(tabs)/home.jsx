@@ -63,9 +63,10 @@ export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const todayIST = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Kolkata",
-  });
+  const todayISTRef = useRef(
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+  );
+  const todayIST = todayISTRef.current;
   const todayDisplay = new Date().toLocaleDateString("en-IN", {
     timeZone: "Asia/Kolkata",
     weekday: "long",
@@ -116,11 +117,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
-  });
-  const onRefresh = useCallback(() => {
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const onRefresh = () => {
     setRefreshing(true);
     loadData(true);
-  }, []);
+  };
 
   async function submitMark(status, reason) {
     setAbsentModal(false);

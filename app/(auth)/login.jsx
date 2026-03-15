@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +14,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { COLORS } from "../../constants/colors";
@@ -36,6 +38,7 @@ export default function LoginScreen() {
   async function handleLogin() {
     setError("");
     const uid = extractUID(url);
+    Keyboard.dismiss();
     if (!uid) {
       setError("Invalid URL. Make sure it contains ?uid=...");
       return;
@@ -65,139 +68,142 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+
     >
-      <LinearGradient
-        colors={["#1a0a2e", "#0F0E17", "#0F0E17"]}
-        style={StyleSheet.absoluteFill}
-      />
+    {/* <TouchableWithoutFeedback onPress={Keyboard.dismiss}> */}
+        <LinearGradient
+          colors={["#1a0a2e", "#0F0E17", "#0F0E17"]}
+          style={StyleSheet.absoluteFill}
+        />
 
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Logo */}
-        <View style={styles.logoArea}>
-          <LinearGradient
-            colors={[COLORS.primaryDark, COLORS.primary]}
-            style={styles.logoCircle}
-          >
-            <Ionicons name="clipboard" size={38} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.appName}>Attendance</Text>
-          <Text style={styles.tagline}>Track your days, effortlessly.</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo */}
+          <View style={styles.logoArea}>
+            <LinearGradient
+              colors={[COLORS.primaryDark, COLORS.primary]}
+              style={styles.logoCircle}
+            >
+              <Ionicons name="clipboard" size={38} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.appName}>Attendance</Text>
+            <Text style={styles.tagline}>Track your days, effortlessly.</Text>
+          </View>
 
-        {/* Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Welcome Back</Text>
-          <Text style={styles.cardSub}>
-            Paste your Telegram dashboard URL to sign in
-          </Text>
+          {/* Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Welcome Back</Text>
+            <Text style={styles.cardSub}>
+              Paste your Telegram dashboard URL to sign in
+            </Text>
 
-          {/* Hint */}
-          <View style={styles.hintBox}>
-            <View style={styles.hintTitleRow}>
-              <Ionicons
-                name="bulb-outline"
-                size={13}
-                color={COLORS.primaryLight}
-              />
-              <Text style={styles.hintTitle}> Your URL looks like:</Text>
+            {/* Hint */}
+            <View style={styles.hintBox}>
+              <View style={styles.hintTitleRow}>
+                <Ionicons
+                  name="bulb-outline"
+                  size={13}
+                  color={COLORS.primaryLight}
+                />
+                <Text style={styles.hintTitle}> Your URL looks like:</Text>
+              </View>
+              <Text style={styles.hintUrl}>
+                https://attendance-09.vercel.app/?uid=11••••47
+              </Text>
             </View>
-            <Text style={styles.hintUrl}>
-              https://attendance-09.vercel.app/?uid=11••••47
+
+            {/* Input */}
+            <View
+              style={[styles.inputWrap, error ? styles.inputWrapError : null]}
+            >
+              <Ionicons
+                name="link-outline"
+                size={18}
+                color={COLORS.textMuted}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Paste your dashboard URL here"
+                placeholderTextColor={COLORS.textMuted}
+                value={url}
+                onChangeText={(t) => {
+                  setUrl(t);
+                  setError("");
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Error */}
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons
+                  name="warning-outline"
+                  size={14}
+                  color={COLORS.absent}
+                />
+                <Text style={styles.errorText}> {error}</Text>
+                {error.includes("Telegram") && (
+                  <TouchableOpacity
+                    style={styles.telegramBtn}
+                    onPress={() =>
+                      Linking.openURL("https://t.me/Attendance009bot")
+                    }
+                  >
+                    <Ionicons name="paper-plane-outline" size={16} color="#fff" />
+                    <Text style={styles.telegramBtnText}> Open Telegram Bot</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null}
+
+            {/* Button */}
+            <TouchableOpacity
+              style={styles.btnWrap}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={
+                  loading
+                    ? [COLORS.neutral, COLORS.neutral]
+                    : [COLORS.primaryDark, COLORS.primaryLight]
+                }
+                style={styles.btn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={styles.btnContent}>
+                    <Text style={styles.btnText}>Continue</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.footerRow}>
+            <Ionicons
+              name="information-circle-outline"
+              size={13}
+              color={COLORS.textMuted}
+            />
+            <Text style={styles.footer}>
+              {" "}
+              Registered via Telegram? Your UID is in the bot dashboard link.
             </Text>
           </View>
-
-          {/* Input */}
-          <View
-            style={[styles.inputWrap, error ? styles.inputWrapError : null]}
-          >
-            <Ionicons
-              name="link-outline"
-              size={18}
-              color={COLORS.textMuted}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Paste your dashboard URL here"
-              placeholderTextColor={COLORS.textMuted}
-              value={url}
-              onChangeText={(t) => {
-                setUrl(t);
-                setError("");
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* Error */}
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons
-                name="warning-outline"
-                size={14}
-                color={COLORS.absent}
-              />
-              <Text style={styles.errorText}> {error}</Text>
-              {error.includes("Telegram") && (
-                <TouchableOpacity
-                  style={styles.telegramBtn}
-                  onPress={() =>
-                    Linking.openURL("https://t.me/Attendance009bot")
-                  }
-                >
-                  <Ionicons name="paper-plane-outline" size={16} color="#fff" />
-                  <Text style={styles.telegramBtnText}> Open Telegram Bot</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : null}
-
-          {/* Button */}
-          <TouchableOpacity
-            style={styles.btnWrap}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={
-                loading
-                  ? [COLORS.neutral, COLORS.neutral]
-                  : [COLORS.primaryDark, COLORS.primaryLight]
-              }
-              style={styles.btn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <View style={styles.btnContent}>
-                  <Text style={styles.btnText}>Continue</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#fff" />
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footerRow}>
-          <Ionicons
-            name="information-circle-outline"
-            size={13}
-            color={COLORS.textMuted}
-          />
-          <Text style={styles.footer}>
-            {" "}
-            Registered via Telegram? Your UID is in the bot dashboard link.
-          </Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      
     </KeyboardAvoidingView>
   );
 }
