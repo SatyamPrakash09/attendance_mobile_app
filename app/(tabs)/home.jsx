@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import {useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -64,7 +64,7 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   const todayISTRef = useRef(
-    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
   );
   const todayIST = todayISTRef.current;
   const todayDisplay = new Date().toLocaleDateString("en-IN", {
@@ -74,11 +74,18 @@ export default function HomeScreen() {
     month: "long",
     day: "numeric",
   });
-  const hour = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-  ).getHours();
+  const getISThour = () => {
+    const now = new Date();
+    // IST = UTC + 5:30
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const ist = new Date(utc + 5.5 * 3600000);
+    return ist.getHours();
+  };
+
+  const hour = getISThour();
   const greeting =
     hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+
   const greetIcon =
     hour < 12 ? "sunny-outline" : hour < 17 ? "sunny" : "moon-outline";
 
