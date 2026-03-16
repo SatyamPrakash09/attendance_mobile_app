@@ -292,16 +292,21 @@ export default function StatsScreen() {
         <View style={[styles.card, styles.aiCard]}>
           <View style={styles.aiTitleRow}>
             <LinearGradient
+
               colors={[COLORS.primaryDark, COLORS.primary]}
               style={styles.aiBadge}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
               <Ionicons name="hardware-chip-outline" size={11} color="#fff" />
-              <Text style={styles.aiBadgeText}> GEMINI AI</Text>
+              <Text style={styles.aiBadgeText} className="text-center"> GEMINI AI</Text>
             </LinearGradient>
-            <Pressable style={styles.aiButton} onPress={handleAi}>
-              <Text className ="bg-violet-600 p-3 border" style={styles.aiInsightsLabel}>Generate Insights</Text>
+            <Pressable onPress={handleAi}>
+              <LinearGradient
+              style={styles.aiButton}
+              colors={["#d97706", "#f59e0b", "#fbbf24"]}>
+                <Text className ="bg-violet-600 p-3 border" style={styles.aiInsightsLabel}>Generate Insights</Text>
+              </LinearGradient>
             </Pressable>
           </View>
           {aiLoading ? (
@@ -497,6 +502,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     marginBottom: 14,
+    justifyContent:"space-between",
+    padding:5,
+    // marginStart:"auto"
+    
   },
   aiBadge: {
     flexDirection: "row",
@@ -504,19 +513,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 5,
+    justifyContent:"center"
   },
   aiBadgeText: {
     fontSize: 10,
     fontWeight: "800",
     color: "#fff",
     letterSpacing: 0.8,
+    textAlign:"center",
+    
   },
   aiButton:{
     backgroundColor:COLORS.primaryDark,
     paddingVertical:5,
     paddingHorizontal:9,
     borderRadius:8,
-    marginStart:"auto",
 
   },
   aiInsightsLabel: {
