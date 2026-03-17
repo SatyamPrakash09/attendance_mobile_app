@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/colors";
 import { fetchAISummary, fetchAllAttendance } from "../../lib/api";
 import { getUid } from "../../lib/storage";
+import { router } from "expo-router";
 
 const TARGET_PCT = 95;
 
@@ -288,7 +289,27 @@ export default function StatsScreen() {
           )}
         </View>
 
-        {/* ── Gemini AI Insights ────────────────────────────── */}
+        {/* ── AI Chat Navigation Button ─────────────────────── */}
+        <Pressable
+          onPress={() => router.push("/AiChat")}
+          style={({ pressed }) => [
+            styles.chatButtonContainer,
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <LinearGradient
+            colors={["#7C3AED", "#4C1D95"]}
+            style={styles.chatButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color="#fff" />
+            <Text style={styles.chatButtonText}>Open AI Assistant</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
+          </LinearGradient>
+        </Pressable>
+
+        {/* ── Gemini AI Insights ──────────────────────────────
         <View style={[styles.card, styles.aiCard]}>
           <View style={styles.aiTitleRow}>
             <LinearGradient
@@ -317,7 +338,8 @@ export default function StatsScreen() {
           ) : aiSummary ? (
             <Text style={styles.aiText}>{aiSummary}</Text>
           ) : null}
-        </View>
+        </View> */}
+
       </ScrollView>
     </LinearGradient>
   );
@@ -540,5 +562,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.62)",
     lineHeight: 23,
+  },
+  chatButtonContainer: {
+    marginTop: 6,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+    
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+    borderRadius:20,
+    marginHorizontal:70
+    
+  },
+  chatButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });

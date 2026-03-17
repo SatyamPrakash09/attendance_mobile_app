@@ -81,9 +81,25 @@ export default function RootLayout() {
             sheetGrabberVisible: false,
             animation: "slide_from_bottom",
             sheetInitialDetentIndex: 0,
-            sheetAllowedDetents: [0.5,0.75],
+            sheetAllowedDetents: [0.5, 0.75],
             sheetCornerRadius: 15,
             sheetExpandsWhenScrolledToEdge: false,
+            sheetElevation: 24,
+          }}
+        />
+        <Stack.Screen
+          name="AiChat"
+          options={{
+            headerShown: false,
+            title: "AI Chat",
+            presentation: "formSheet",
+            gestureDirection: "vertical",
+            sheetGrabberVisible: true,
+            animation: "slide_from_bottom",
+            sheetInitialDetentIndex: 0,
+            sheetAllowedDetents: [1], 
+            sheetCornerRadius: 15,
+            sheetExpandsWhenScrolledToEdge: true,
             sheetElevation: 24,
           }}
         />
