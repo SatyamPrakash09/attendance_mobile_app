@@ -1,20 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
+  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/colors";
-import { fetchAISummary, fetchAllAttendance } from "../../lib/api";
+import {
+  fetchAllAttendance,
+  refreshAttendance,
+  updateAttendance,
+  updateHoliday,
+} from "../../lib/api";
 import { getUid } from "../../lib/storage";
-import { router } from "expo-router";
 
 const TARGET_PCT = 95;
 
@@ -32,8 +41,6 @@ function computeStats(records) {
   const workdays = total - holiday;
   const percentage = workdays > 0 ? Number(((present / workdays) * 100).toFixed(2)) : 0;
 
-  // Days needed to reach TARGET_PCT
-  // (present + x) / (workdays + x) = TARGET_PCT/100  →  x = (TARGET_PCT*workdays - 100*present) / (100 - TARGET_PCT)
   const daysToTarget =
     percentage < TARGET_PCT
       ? Math.ceil((TARGET_PCT * workdays - 100 * present) / (100 - TARGET_PCT))
@@ -102,23 +109,33 @@ function computeStats(records) {
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const [stats, setStats] = useState(null);
-  const [aiSummary, setAiSummary] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Calendar & marking state
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [reasonModal, setReasonModal] = useState(false);
+  const [reasonType, setReasonType] = useState(null); // "Absent" or "Holiday"
+  const [reason, setReason] = useState("");
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
       const uid = await getUid();
-      const records = await fetchAllAttendance(uid);
-      setStats(computeStats(records));
-      setAiLoading(true);
+      let data;
+      if (isRefresh) {
+        data = await refreshAttendance(uid);
+      } else {
+        data = await fetchAllAttendance(uid);
+      }
+      setRecords(data);
+      setStats(computeStats(data));
     } catch (e) {
       console.log("Stats error:", e.message);
     } finally {
       setLoading(false);
-      setAiLoading(false)
       if (isRefresh) setRefreshing(false);
     }
   }, []);
@@ -126,10 +143,66 @@ export default function StatsScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData(true);
   }, [loadData]);
+
+  // Build calendar marked-dates object
+  const markedDates = {};
+  records.forEach((r) => {
+    let dotColor = COLORS.neutral;
+    if (r.status === "Present") dotColor = COLORS.present;
+    else if (r.status === "Absent") dotColor = COLORS.absent;
+    else if (r.status === "Holiday") dotColor = COLORS.holiday;
+    markedDates[r.date] = { marked: true, dotColor };
+  });
+  if (selectedDate) {
+    markedDates[selectedDate] = {
+      ...markedDates[selectedDate],
+      selected: true,
+      selectedColor: COLORS.primary,
+    };
+  }
+
+  const selectedRecord = selectedDate
+    ? records.find((r) => r.date === selectedDate) || null
+    : null;
+
+  // Mark attendance for a selected date
+  async function handleMark(status, reasonText) {
+    if (!selectedDate) return;
+    setReasonModal(false);
+    setActionLoading(status);
+
+    // Haptic feedback
+    if (status === "Present") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    else if (status === "Absent") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      const uid = await getUid();
+      if (status === "Holiday") {
+        await updateHoliday(uid, selectedDate, reasonText || "Declared by user");
+      } else {
+        await updateAttendance(uid, status, reasonText || "-", selectedDate);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await loadData(true);
+    } catch (e) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", e.message || "Failed to mark attendance.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  function openReasonModal(type) {
+    setReasonType(type);
+    setReason("");
+    setReasonModal(true);
+  }
 
   if (loading) {
     return (
@@ -148,18 +221,14 @@ export default function StatsScreen() {
 
   const pc = pctColor(stats?.percentage || 0);
 
-  const handleAi = async () => {
-    try {
-      setAiLoading(true);
-      const uid = await getUid();
-      const result = await fetchAISummary(uid);
-      setAiSummary(result);
-    } catch (error) {
-      setAiSummary(`An error occurred: ${error.message ?? error}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  const selectedDateDisplay = selectedDate
+    ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-IN", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   return (
     <LinearGradient
@@ -289,58 +358,252 @@ export default function StatsScreen() {
           )}
         </View>
 
-        {/* ── AI Chat Navigation Button ─────────────────────── */}
-        <Pressable
-          onPress={() => router.push("/AiChat")}
-          style={({ pressed }) => [
-            styles.chatButtonContainer,
-            pressed && { opacity: 0.8 },
-          ]}
-        >
-          <LinearGradient
-            colors={["#7C3AED", "#4C1D95"]}
-            style={styles.chatButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="chatbubbles-outline" size={20} color="#fff" />
-            <Text style={styles.chatButtonText}>Open AI Assistant</Text>
-            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
-          </LinearGradient>
-        </Pressable>
-
-        {/* ── Gemini AI Insights ──────────────────────────────
-        <View style={[styles.card, styles.aiCard]}>
-          <View style={styles.aiTitleRow}>
-            <LinearGradient
-
-              colors={[COLORS.primaryDark, COLORS.primary]}
-              style={styles.aiBadge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Ionicons name="hardware-chip-outline" size={11} color="#fff" />
-              <Text style={styles.aiBadgeText} className="text-center"> GEMINI AI</Text>
-            </LinearGradient>
-            <Pressable onPress={handleAi}>
-              <LinearGradient
-              style={styles.aiButton}
-              colors={["#d97706", "#f59e0b", "#fbbf24"]}>
-                <Text className ="bg-violet-600 p-3 border" style={styles.aiInsightsLabel}>Generate Insights</Text>
-              </LinearGradient>
-            </Pressable>
+        {/* ── Mark Attendance Section ─────────────────────────── */}
+        <View style={styles.markSection}>
+          <View style={styles.markHeader}>
+            <Ionicons name="create-outline" size={20} color={COLORS.primaryLight} />
+            <Text style={styles.markTitle}>Mark Attendance</Text>
           </View>
-          {aiLoading ? (
-            <ActivityIndicator
-              color={COLORS.primaryLight}
-              style={{ marginTop: 16 }}
-            />
-          ) : aiSummary ? (
-            <Text style={styles.aiText}>{aiSummary}</Text>
-          ) : null}
-        </View> */}
+          <Text style={styles.markSubtitle}>
+            Select a date and mark your attendance
+          </Text>
+        </View>
 
+        {/* Calendar */}
+        <View style={styles.calendarWrap}>
+          <Calendar
+            markedDates={markedDates}
+            markingType="dot"
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+            theme={{
+              backgroundColor: "transparent",
+              calendarBackground: COLORS.card,
+              textSectionTitleColor: COLORS.textSecondary,
+              selectedDayBackgroundColor: COLORS.primary,
+              selectedDayTextColor: "#fff",
+              todayTextColor: COLORS.primaryLight,
+              todayBackgroundColor: COLORS.overlay,
+              dayTextColor: COLORS.textPrimary,
+              textDisabledColor: COLORS.textMuted,
+              arrowColor: COLORS.primary,
+              monthTextColor: COLORS.textPrimary,
+              textDayFontWeight: "600",
+              textMonthFontWeight: "800",
+              textDayHeaderFontWeight: "600",
+              textDayFontSize: 14,
+              textMonthFontSize: 17,
+              textDayHeaderFontSize: 12,
+            }}
+          />
+        </View>
+
+        {/* Selected date detail & actions */}
+        {selectedDate && (
+          <View style={styles.selectedSection}>
+            {/* Date display */}
+            <View style={styles.selectedDateRow}>
+              <Ionicons name="calendar-outline" size={18} color={COLORS.primaryLight} />
+              <Text style={styles.selectedDateText}>{selectedDateDisplay}</Text>
+            </View>
+
+            {/* Current status badge */}
+            {selectedRecord ? (
+              <View style={[
+                styles.currentStatusBadge,
+                {
+                  borderColor:
+                    selectedRecord.status === "Present" ? COLORS.present
+                    : selectedRecord.status === "Absent" ? COLORS.absent
+                    : COLORS.holiday,
+                },
+              ]}>
+                <Ionicons
+                  name={
+                    selectedRecord.status === "Present" ? "checkmark-circle"
+                    : selectedRecord.status === "Absent" ? "close-circle"
+                    : "sunny"
+                  }
+                  size={16}
+                  color={
+                    selectedRecord.status === "Present" ? COLORS.present
+                    : selectedRecord.status === "Absent" ? COLORS.absent
+                    : COLORS.holiday
+                  }
+                />
+                <Text style={[
+                  styles.currentStatusText,
+                  {
+                    color:
+                      selectedRecord.status === "Present" ? COLORS.present
+                      : selectedRecord.status === "Absent" ? COLORS.absent
+                      : COLORS.holiday,
+                  },
+                ]}>
+                  Currently: {selectedRecord.status}
+                </Text>
+                {selectedRecord.reason && selectedRecord.reason !== "-" && (
+                  <Text style={styles.currentReasonText}>
+                    — {selectedRecord.reason}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <View style={styles.currentStatusBadge}>
+                <Ionicons name="help-circle-outline" size={16} color={COLORS.textMuted} />
+                <Text style={[styles.currentStatusText, { color: COLORS.textMuted }]}>
+                  No record for this date
+                </Text>
+              </View>
+            )}
+
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.actionBtnWrap}
+                onPress={() => handleMark("Present", "Present")}
+                disabled={!!actionLoading}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={["#14532d", "#166534"]}
+                  style={styles.actionBtn}
+                >
+                  {actionLoading === "Present" ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={28} color="#4ade80" />
+                      <Text style={styles.actionLabel}>Present</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBtnWrap}
+                onPress={() => openReasonModal("Absent")}
+                disabled={!!actionLoading}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={["#450a0a", "#7f1d1d"]}
+                  style={styles.actionBtn}
+                >
+                  {actionLoading === "Absent" ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="close-circle" size={28} color="#f87171" />
+                      <Text style={styles.actionLabel}>Absent</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.holidayWrap}
+              onPress={() => openReasonModal("Holiday")}
+              disabled={!!actionLoading}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={["#451a03", "#78350f"]}
+                style={styles.holidayBtn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {actionLoading === "Holiday" ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="sunny" size={22} color="#fbbf24" />
+                    <Text style={styles.actionLabel}>Holiday</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      {/* ── Reason Modal (for Absent & Holiday) ──────────────── */}
+      <Modal
+        visible={reasonModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReasonModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <LinearGradient
+              colors={["#1a0a2e", COLORS.card]}
+              style={styles.modalGrad}
+            >
+              <Text style={styles.modalTitle}>
+                {reasonType === "Absent" ? "Why Absent?" : "Holiday Reason"}
+              </Text>
+              <Text style={styles.modalSub}>
+                {reasonType === "Absent"
+                  ? "Add a reason for your absence"
+                  : "Add a reason for this holiday"}
+              </Text>
+
+              {selectedDateDisplay && (
+                <View style={styles.modalDateRow}>
+                  <Ionicons name="calendar-outline" size={14} color={COLORS.primaryLight} />
+                  <Text style={styles.modalDateText}>{selectedDateDisplay}</Text>
+                </View>
+              )}
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder={
+                  reasonType === "Absent"
+                    ? "e.g. Sick, Family function…"
+                    : "e.g. National holiday, College event…"
+                }
+                placeholderTextColor={COLORS.textMuted}
+                value={reason}
+                onChangeText={setReason}
+                multiline
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => {
+                    setReasonModal(false);
+                    setReason("");
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalSubmitBtn}
+                  onPress={() => {
+                    const r = reason.trim() || "-";
+                    setReason("");
+                    handleMark(reasonType, r);
+                  }}
+                >
+                  <LinearGradient
+                    colors={
+                      reasonType === "Absent"
+                        ? ["#7f1d1d", "#991b1b"]
+                        : ["#78350f", "#92400e"]
+                    }
+                    style={styles.modalSubmitGrad}
+                  >
+                    <Text style={styles.modalSubmitText}>
+                      Mark {reasonType}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -354,10 +617,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   loadingText: { color: COLORS.textSecondary, marginTop: 12 },
-  // Extra bottom padding so content clears the floating tab bar
   scroll: { paddingBottom: 100, paddingHorizontal: 16 },
 
-  // Title — bigger top breathing room, stronger hierarchy
+  // Title
   titleSection: { alignItems: "center", paddingTop: 24, paddingBottom: 22 },
   titleLabel: {
     fontSize: 12,
@@ -374,7 +636,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Card base — glassmorphism border + subtle shadow
+  // Card base
   card: {
     backgroundColor: "rgba(26,26,46,0.92)",
     borderRadius: 20,
@@ -422,7 +684,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Stat boxes — distinct tinted background + top accent line per color
+  // Stat boxes
   statRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
   statBox: {
     flex: 1,
@@ -448,7 +710,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Streak — warm amber glow shadow
+  // Streak
   streakCard: {
     borderRadius: 20,
     padding: 18,
@@ -508,88 +770,166 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
 
-  // AI card — purple glow + top accent border
-  aiCard: {
-    borderTopWidth: 2,
-    borderTopColor: COLORS.primary,
-    borderLeftWidth: 0,
+  // ── Mark Attendance Section ──
+  markSection: {
+    marginTop: 10,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  markHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  markTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  markSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
+
+  // Calendar
+  calendarWrap: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+
+  // Selected section
+  selectedSection: {
+    backgroundColor: "rgba(26,26,46,0.92)",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.25)",
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 7,
-  },
-  aiTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-    justifyContent:"space-between",
-    padding:5,
-    // marginStart:"auto"
-    
-  },
-  aiBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    justifyContent:"center"
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.8,
-    textAlign:"center",
-    
-  },
-  aiButton:{
-    backgroundColor:COLORS.primaryDark,
-    paddingVertical:5,
-    paddingHorizontal:9,
-    borderRadius:8,
-
-  },
-  aiInsightsLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.8,
-  },
-  aiText: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.62)",
-    lineHeight: 23,
-  },
-  chatButtonContainer: {
-    marginTop: 6,
-    marginBottom: 20,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
     elevation: 5,
-    
   },
-  chatButton: {
+  selectedDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  selectedDateText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+  },
+  currentStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  currentStatusText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  currentReasonText: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.4)",
+    flexShrink: 1,
+  },
+
+  // Action buttons
+  actionRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  actionBtnWrap: { flex: 1 },
+  actionBtn: { borderRadius: 16, padding: 18, alignItems: "center", gap: 6 },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.9)",
+  },
+  holidayWrap: {},
+  holidayBtn: {
+    borderRadius: 16,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 12,
-    borderRadius:20,
-    marginHorizontal:70
-    
+    gap: 10,
   },
-  chatButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "flex-end",
   },
+  modalCard: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: "hidden",
+  },
+  modalGrad: { padding: 28, paddingBottom: 44 },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  modalSub: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 14 },
+  modalDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(124,58,237,0.15)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+    alignSelf: "flex-start",
+  },
+  modalDateText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.primaryLight,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 14,
+    padding: 14,
+    color: COLORS.textPrimary,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    fontSize: 14,
+    minHeight: 90,
+    textAlignVertical: "top",
+    marginBottom: 18,
+  },
+  modalButtons: { flexDirection: "row", gap: 12 },
+  modalCancelBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: { color: COLORS.textSecondary, fontWeight: "600" },
+  modalSubmitBtn: { flex: 1, borderRadius: 14, overflow: "hidden" },
+  modalSubmitGrad: { padding: 14, alignItems: "center" },
+  modalSubmitText: { color: "#fff", fontWeight: "700" },
 });
