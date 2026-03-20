@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -326,6 +328,29 @@ export default function HomeScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
+        {/* ── AI Chat Navigation Button ─────────────────────── */}
+        <Pressable
+          onPress={() => router.push("/AiChat")}
+          style={({ pressed }) => [
+            styles.chatButtonContainer,
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <LinearGradient
+            colors={["#7C3AED", "#4C1D95"]}
+            style={styles.chatButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color="#fff" />
+            <Text style={styles.chatButtonText}>Open AI Assistant</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color="rgba(255,255,255,0.6)"
+            />
+          </LinearGradient>
+        </Pressable>
         <Text style={styles.pullHint}>Pull down to refresh</Text>
       </ScrollView>
 
@@ -482,6 +507,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
+    marginBottom: 20,
   },
   actionLabel: {
     fontSize: 14,
@@ -538,4 +564,31 @@ const styles = StyleSheet.create({
   modalSubmitBtn: { flex: 1, borderRadius: 14, overflow: "hidden" },
   modalSubmitGrad: { padding: 14, alignItems: "center" },
   modalSubmitText: { color: "#fff", fontWeight: "700" },
+  chatButtonContainer: {
+    marginTop: 10,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+    borderRadius: 20,
+    marginHorizontal: 70,
+  },
+  chatButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
 });

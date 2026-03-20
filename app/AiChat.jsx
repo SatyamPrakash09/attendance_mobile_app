@@ -192,6 +192,7 @@ const AiChat = () => {
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
+            nestedScrollEnabled
             ref={scrollViewRef}
             style={styles.chatArea}
             contentContainerStyle={styles.chatContent}
